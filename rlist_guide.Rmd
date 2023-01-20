@@ -1,0 +1,696 @@
+
+# rlist 
+
+
+[rlist](https://renkun-ken.github.io/rlist-tutorial/Getting-started/Quick-overview.html)
+ß
+```{r}
+# install.packages('rlist')
+library(rlist)
+library(tidyverse)
+# install.packages('pipeR')
+library(pipeR)
+
+url <- "https://renkun-ken.github.io/rlist-tutorial/data/people.json"
+
+people <- list.load(url)
+
+people %>>%
+  list.filter(Expertise$R >= 1 & Expertise$Python >= 1) %>>%
+  list.class(Interests) %>>%
+  list.sort(-length(.)) %>>%
+  list.take(3) %>>%
+  list.map(. %>>% list.table(Age))
+```
+
+
+- We filter people list by the prerequisites: Using both R and Python for at least one year.
+
+-  Then we class all people by their interests, that is, we create a big list of possible interest values, each is a nested list of all people whose interests contain that value.
+
+- Then we sort in descending these interest classes by the number of people who has the corresponding interest.
+
+- Then we pick out the top 3 interests with most people.
+- Then we map each interest class to a table of ages in that class.
+-  The output is exactly the answer to the question.
+
+
+| Name   |	Age	| Interests	              | Expertise             |
+| -------|------|-------------------------|-----------------------|
+| Ken    |	24	| reading, music, movies	| R:2, C#:4, Python:3   |
+| James  |	25	| sports, music	          | R:3, Java:2, C++:5    |
+| Penny	 |  24	| movies, reading	        | R:1, C++:4, Python:2  |
+
+
+
+using a csv would not work for all of the data
+using a JSON file would work but is messy
+
+
+rlist package imports jsonlite package to read/write JSON data.
+
+Another file format that is also widely used is `YAML`. The following text is a YAML format representation (stored here) of the non-tabular data:
+rlist also imports yaml package to read/write YAML data.
+
+```{}
+# YAML file 
+
+- Name: Ken
+  Age: 24
+  Interests:
+  - reading
+  - music
+  - movies
+  Expertise:
+    R: 2
+    CSharp: 4
+    Python: 3
+    
+- Name: James
+  Age: 25
+  Interests:
+  - sports
+  - music
+  Expertise:
+    R: 3
+    Java: 2
+    Cpp: 5
+    
+- Name: Penny
+  Age: 24
+  Interests:
+  - movies
+  - reading
+  Expertise:
+    R: 1
+    Cpp: 4
+    Python: 2
+```
+
+
+
+# mapping
+
+use the small JSON data
+
+```{r}
+j = "https://renkun-ken.github.io/rlist-tutorial/data/sample.json"
+
+small_json = list.load(file= j, type = 'json')
+
+str(small_json)
+```
+
+
+
+To extract the name of each people (list element), traditionally we can call `lapply()`
+
+```{r}
+# people, prints out 500 names from the Name list
+
+lapply(small_json, function(x) {
+  x$Name
+})
+```
+
+
+
+Using rlist's list.map() to extract all names in Name
+
+```{r}
+list.map(small_json, Name)
+```
+
+The following code maps each list member to the sum of years of the programming languages they use.
+
+```{r}
+list.map(small_json, Expertise)
+```
+
+sum up each person's experience by all coding expertise 
+
+```{r}
+list.map(small_json, sum( as.numeric(Expertise) )  )
+```
+
+map person name with experience range, James has most coding experience
+
+```{r}
+list.map(small_json, list(Name=Name, range=range(as.numeric(Expertise))))
+```
+
+
+### list.map shorthand
+
+In some cases we need to refer to the item itself, or its index in the list, or even its name. In the expression, `.` represents the item itself, `.i` represents its index, and `.name` represents its name.
+
+- a 3 becomes 4
+- b 2 becomes 3
+- c 1 becomes 2
+
+```{r}
+nums =  c(a=3, b=2, c=1)
+
+list.map(nums, . + 1)
+
+list.map(nums, paste0("name: ", .name))
+```
+
+
+### mapv
+
+get a vector instead of a list returned
+
+```{r}
+list.mapv(small_json, Age)
+
+list.mapv(small_json, Interests)
+
+list.mapv(small_json, Expertise)
+```
+
+
+### list.select
+
+```{r}
+list.select(small_json, Name, Expertise)
+```
+
+```{r}
+list.select(small_json, Name, Age, CodingExp= length(Expertise))
+```
+
+
+
+### list.iter
+
+just get a value
+
+```{r}
+list.iter(small_json, cat(Name, ":", Age, "\n"))
+```
+
+### list.maps
+
+can use more than one list
+
+```{r}
+L1 = list(p1= list(x=1, y=2), 
+          p2= list(x=3, y=4), 
+          p3= list(x=1, y=3) 
+          )
+
+L2 = list(2, 3, 5)
+
+list.maps(a$x * b + a$y, a= L1, b=L2)
+```
+
+
+
+## Filter list
+
+list.filter() filters a list by an expression that returns TRUE or FALSE.
+
+```{r}
+list.filter(small_json, Age >= 25)
+```
+
+```{r}
+library(pipeR)
+
+small_json %>>%
+  list.filter(Age >= 25) %>>%
+  list.mapv(Name)
+```
+
+
+## List find
+
+```{r}
+people %>>%
+  list.find(Age >= 25,n = 10) %>>%
+  list.mapv(Name)
+
+
+# find index number location
+list.findi(people, Age >= 23, 2)
+```
+
+List take
+
+```{r}
+list.take(5:10, 3)
+```
+
+list skip
+
+```{r}
+list.skip(1:10, 3)
+```
+
+list.count
+```{r}
+list.count(people, "R" %in% names(Expertise))
+```
+
+
+list.match
+
+```{r}
+data = list(a1= 3, a3= 7, c= 9)
+
+list.match(data, "a[13]")
+```
+
+
+list subset
+
+```{r}
+small_json %>>% 
+  subset(Age >= 24, Name)
+```
+
+
+```{r}
+small_json %>>%
+  list.select(Name, Age) %>>%
+  list.stack
+```
+
+
+Suppose we find that the age of each people is mistakenly recorded, say, 1 year less than their actual ages, respectively, we need to update the original data by refresh the age of each element.
+
+```{r}
+small_json %>>%
+  list.update(Age = Age + 1) %>>%
+  list.select(Name, Age) %>>%
+  list.stack
+```
+
+
+
+list.order
+
+```{r}
+list.order(small_json, Age)
+
+list.order(small_json, (Expertise$R))
+```
+
+
+list sort
+```{r}
+small_json %>>%
+  list.sort(Age) %>>%
+  list.select(Name, Age)
+```
+
+```{r}
+small_json %>>%
+  list.sort((Expertise$R)) %>>%
+  list.select(Name, R = Expertise$R)
+```
+
+
+
+list cases
+```{r}
+list.cases(small_json, Interests)
+
+list.cases(people, names(Expertise))
+```
+
+
+```{r}
+small_json %>>%
+  list.class(Interests) %>>%
+  list.map(. %>>% list.mapv(Name))
+```
+
+
+```{r}
+list.common(small_json, names(Expertise))
+```
+
+
+list.table
+
+table() builds a contingency table of the counts at each combination of factor levels using cross-classifying factors. list.table() is a wrapper that creates a table in which each dimension results from the values for an expression.
+
+The function is very handy to serve as a counter. The following examples shows an easy way to know the remainders and the number of integers from 1 to 1000 when each is divided by 3.
+
+```{r}
+list.table(1:1000, . %% 3)
+```
+
+
+
+list.join
+
+```{r}
+newinfo = list(
+    list(Name="Ken", Email="ken@xyz.com"),
+    list(Name="Penny", Email="penny@xyz.com"),
+    list(Name="James", Email="james@xyz.com")
+    )
+
+
+list.join(small_json, newinfo, Name)
+```
+
+
+
+Search all elements equal to Ken recursively.
+
+```{r}
+friends <- list.load("https://renkun-ken.github.io/rlist-tutorial/data/friends.json")
+
+
+list.search(friends, . == "Ken")
+```
+
+
+## list.parse
+
+convert an object to a list, convert dataframe or a matrix to a list
+
+```{r}
+df = data.frame(
+  names = c("Linux","Mac","Windows"),
+  age = c(58,57,48),
+  stringsAsFactors = F
+)
+
+list.parse( df)
+```
+
+JSON data
+
+```{r}
+js = '[
+    {"name": "Apple", "age": 67},
+    {"name": "Windows", "age": 78},
+    {"name": "Linux", "age": 44}
+  ]'
+
+str( list.parse(js, "json") ) 
+```
+
+YAML data
+
+```{r}
+yam = "
+p1:
+  name: Apple
+  age: 167
+p2:
+  name: Windows
+  age: 89
+p3:
+  name: Linux
+  age: 56
+"
+
+parsed_yaml = list.parse(yam, "yaml") 
+str( parsed_yaml ) 
+```
+
+
+
+## list.stack
+
+the opposite of list.parse() on a dataframe, creates a dataframe
+Take the parsed yaml data and put in list.stack
+
+```{r}
+list.stack( parsed_yaml)
+```
+
+## list.load & list.save
+
+this looks at file extension and determines which loader to use
+
+```{r}
+j = "https://renkun-ken.github.io/rlist-tutorial/data/sample.json"
+
+small_json = list.load(file= j, type = 'json')
+```
+
+
+
+## list.append
+
+```{r}
+library(rlist)
+
+list.append(list(a=100, b= 200, c= 300))
+
+```
+
+list.prepend
+
+```{r}
+list.prepend( list(alpha = 10, beta= 20, ceta= 30))
+```
+```{r}
+list.append( c(a=1, b= 2), c=3)
+```
+
+
+
+
+
+## list.zip
+
+```{r}
+str( list.zip(a= c(1,2,3), b= c(10,20,30)) )
+```
+
+
+```{r}
+str( list.zip(x= list(1,"x"), y= list("y", 2)) )
+```
+
+
+
+## list.rbind
+
+```{r}
+scores = list(
+  score1 = c(10,20,30),
+  score2 = c(100, 200, 300),
+  score3 = c(1e3, 2e3, 3e3)
+)
+
+list.rbind( scores)
+```
+
+```{r}
+list.cbind( scores )
+```
+
+
+a list of lists => matrix of lists
+
+```{r}
+scores3 = list(
+  score1.1 = list(150, 250, 350),
+  score2.1 = list(1150, 2150, 3150),
+  period = list('one','two','three')
+)
+
+scores3_r = list.rbind( scores3)
+scores3_r
+```
+
+```{r}
+scores3_r[1,1]
+```
+
+
+
+## list.stack
+
+to create a dataframe from lists, helpful for non tabular data
+
+```{r}
+nontab = list(
+  list(
+    type="A",
+    value= 110
+  ),
+  list(
+    type="B",
+    value= 90
+  )
+)
+
+list.stack( nontab)
+```
+
+
+grab data then stack columns we want
+
+```{r}
+list.load("https://renkun-ken.github.io/rlist-tutorial/data/sample.json") %>>%
+  list.select(Name, Age) %>>%
+  list.stack
+```
+
+
+## list.flatten
+
+```{r}
+d = list(
+  list(
+    a= 10,
+    b= 20
+  ),
+  list(
+    c(c= 245,
+      d= list(w= 899,
+              h= 1788 ))
+  )
+)
+
+# d
+str(d)
+```
+
+```{r}
+list.flatten(d)
+```
+
+
+
+## lambda expressions
+
+```{r}
+x = list(
+  a= c(w= 10, d= 20 ),
+  b = c(w= 100, d= 200)
+)
+
+list.map(x, sum(d))
+```
+
+```{r}
+list.map(x,  w*d)
+```
+
+```{r}
+list.map(x, w + .i)
+```
+
+
+```{r}
+list.map(x, .name)
+```
+
+
+
+
+## list enviro
+
+```{r}
+people <- list.load("https://renkun-ken.github.io/rlist-tutorial/data/sample.json")
+
+ppl = List(people)
+
+ppl$map(Name)
+```
+
+
+
+
+
+# GitHub data
+
+Website data is in JSON format
+
+```{r}
+repos = "https://api.github.com/users/hadley/repos?per_page=100&page=%d" 
+
+repos = repos %>>%
+  sprintf(1:2) %>>%
+  list.load("json") %>>%
+  list.ungroup
+```
+
+
+
+```{r}
+list.count( repos)
+```
+
+```{r}
+repos %>% 
+  list.table( fork )
+```
+
+find out the language types of the repos
+
+```{r}
+repos %>% 
+  list.filter( !is.null( language)) %>% 
+  list.table( language ) %>% 
+  list.sort( - .) # descending 
+```
+
+table of language by fork 
+
+```{r}
+repos %>% 
+  list.table( language, fork)
+```
+
+
+
+
+```{r}
+library(ggplot2)
+
+top_10= repos %>>%
+  list.filter(!fork, language == "R") %>>%
+  list.names(name) %>>%
+  list.mapv(stargazers_count) %>>%
+  list.sort(-.) %>>%
+  list.take(10)  %>>%
+  print %>>%
+  barplot(main = "Hadley's top 10 R repos with most stargazers")
+
+str(top_10)
+```
+
+
+
+```{r}
+repos %>>%
+  list.filter(has_issues, !fork, language == "R") %>>%
+  list.names(name) %>>%
+  list.mapv(open_issues) %>>%
+  list.sort(-.) %>>%
+  list.take(10) %>>%
+  print %>>%
+  barplot(main = "Hadley's top 10 R repos with most open issues")
+```
+
+
+
+```{r}
+repos %>>%
+  list.filter(any(grepl("plot|vis", c(name, description)))) %>>%
+  list.sort(-stargazers_count) %>>%
+  list.mapv(name)
+```
+
+```{r}
+repos %>>%
+  list.select(stargazers_count, watchers_count, forks_count) %>>%
+  list.stack %>>%
+  colSums
+```
+
+
+
+
